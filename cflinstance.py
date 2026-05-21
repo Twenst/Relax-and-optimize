@@ -362,12 +362,12 @@ class CFLInstance:
         perturbed_instance.optimize()
         
         
-        warmed_inst = self.copy_instance_data()
+        # warmed_inst = self.copy_instance_data()
         x_vals, y_vals = parse_vars(
             perturbed_instance.getVars(), self.n_facilities, self.n_clients
         )
-        warmed_inst.init_warm_start(x_vals=x_vals, y_vals=y_vals)
+        self.init_warm_start(x_vals=x_vals, y_vals=y_vals)
         
-        warmed_inst.solve(timeout=timeout, gap=1e-9)
+        self.solve(timeout=timeout, gap=1e-9)
         
-        return warmed_inst.m
+        return self.m

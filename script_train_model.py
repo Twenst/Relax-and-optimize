@@ -34,9 +34,8 @@ def generate_dataset(instances, solutions):
     
     return x_train, y_train, x_test, y_test
 
-def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep = 15):
-    fy_score = - torch.dot(thetas.reshape(-1), y_true)
-    true_loss = torch.tensor(0.0, dtype=torch.float32)
+def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep=15):
+    fy_score = torch.dot(thetas.reshape(-1), y_true)
     idx = 0
     for instance in instances:
         # idx jsqu'a idx + instance.n_facilities
@@ -47,18 +46,17 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep = 15):
         
         for _ in range(n_rep):
             noised_thetas = inst_thetas + np.random.normal(0, 0.2, size=inst_thetas.shape)
-            thetaed_model = instance.get_solved_model_using_thetas(-noised_thetas, timeout=25e-3)
+            thetaed_model = instance.get_solved_model_using_thetas(noised_thetas, timeout=50e-3)
 
             _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
             y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
-            esp = esp + torch.dot(y_vals, torch.tensor(inst_thetas, dtype=torch.float32))
-            true_loss = true_loss + ((y_vals - y_true[idx: idx + instance.n_facilities])**2).sum()
+            esp = esp - torch.dot(y_vals, thetas[idx: idx + instance.n_facilities])
                     
         # esp = np.max(esp, axis=0)
         fy_score = fy_score + esp / n_rep
     
         idx += instance.n_facilities
-    return fy_score, true_loss
+    return fy_score
 
 if __name__ == "__main__":
     print("Loading instances and solutions...", end="")
@@ -84,11 +82,11 @@ if __name__ == "__main__":
         # for batch_X, batch_y in dataloader:
             pred = model(X_train)
             # print("pred", pred)
-            loss, true_loss = compute_loss(pred, train_instances, y_train)
+            loss = compute_loss(pred, train_instances, y_train)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}, True Loss: {true_loss.item():.4f}")
+            print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
             losses.append(loss.item())
 
     print("Training completed.")
