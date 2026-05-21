@@ -11,14 +11,18 @@ class CFLInstance:
         n_clients,
         rho=0.8,
         seed=42,
+        generate_new_data=True,
     ):
         self.n_facilities = n_facilities
         self.n_clients = n_clients
         self.rho = rho
         self.seed = seed
-        self.data = self.generate_instance()
-        self.init_model()
-        self.status = "unsolved"
+        if generate_new_data:
+            self.data = self.generate_instance()
+            self.init_model()
+            self.status = "unsolved"
+        else:
+            self.status = "uninitialized"
 
     def copy_instance_data(self):
         data = {
@@ -35,6 +39,7 @@ class CFLInstance:
             self.n_clients,
             self.rho,
             self.seed,
+            generate_new_data=False
         )
         new_instance.data = data
         new_instance.init_model()
@@ -335,7 +340,7 @@ class CFLInstance:
             n_facilities=len(data["facilities"]),
             n_clients=len(data["clients"]),
             seed=0,
-            rho=0.5
+            generate_new_data=False
         )
         inst.data = {
             "facilities": data["facilities"],
