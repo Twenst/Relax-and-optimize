@@ -65,6 +65,7 @@ if __name__ == "__main__":
     solutions = [sol["solution"] for sol in instances_and_sols]
     
     X_train, y_train, X_test, y_test = generate_dataset(instances, solutions)
+    train_instances = instances[:int(np.floor(len(instances)*0.8))]
     dataset = TensorDataset(X_train, y_train)
     dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
     
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         # for batch_X, batch_y in dataloader:
             pred = model(X_train)
             # print("pred", pred)
-            loss, true_loss = compute_loss(pred, instances, y_train)
+            loss, true_loss = compute_loss(pred, train_instances, y_train)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
