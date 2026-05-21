@@ -50,7 +50,7 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep=15):
 
             _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
             y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
-            esp = esp - torch.dot(y_vals, thetas[idx: idx + instance.n_facilities])
+            esp = esp - torch.dot(y_vals, thetas[idx: idx + instance.n_facilities].reshape(-1))
                     
         # esp = np.max(esp, axis=0)
         fy_score = fy_score + esp / n_rep
