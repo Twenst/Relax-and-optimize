@@ -1,4 +1,4 @@
-import cflinstance
+from cflinstance import CFLInstance
 import utils
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ def generate_dataset(instances, solutions):
     
     return x_train, y_train, x_test, y_test
 
-def compute_loss(thetas, instances, y_true, n_rep = 15):
+def compute_loss(thetas, instances: list[CFLInstance], y_true, n_rep = 15):
     fy_score = - torch.dot(thetas.reshape(-1), y_true)
     true_loss = torch.tensor(0.0, dtype=torch.float32)
     idx = 0
@@ -61,7 +61,7 @@ def compute_loss(thetas, instances, y_true, n_rep = 15):
 
 if __name__ == "__main__":
     print("Loading instances and solutions...", end="")
-    instances_and_sols = [cflinstance.CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(300)]
+    instances_and_sols = [CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(300)]
     instances = [inst["instance"] for inst in instances_and_sols]
     solutions = [sol["solution"] for sol in instances_and_sols]
 
