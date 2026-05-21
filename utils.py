@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Constants:
     baseInstanceDataPath = "data/instances.npz"
     instancesDatasetPath = "data/dataset"
