@@ -60,9 +60,12 @@ def compute_loss(thetas, instances, y_true, n_rep = 15):
     return fy_score, true_loss
 
 if __name__ == "__main__":
-    instances_and_sols = [cflinstance.CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(50)]
+    print("Loading instances and solutions...", end="")
+    instances_and_sols = [cflinstance.CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(300)]
     instances = [inst["instance"] for inst in instances_and_sols]
     solutions = [sol["solution"] for sol in instances_and_sols]
+
+    print("Done.")
     
     X_train, y_train, X_test, y_test = generate_dataset(instances, solutions)
     train_instances = instances[:int(np.floor(len(instances)*0.8))]
@@ -73,6 +76,7 @@ if __name__ == "__main__":
 
     optimizer = optim.SGD(model.parameters(), lr=1e-3)
 
+    print("Starting training...")
     # training loop
     losses = []
     for epoch in range(50):
@@ -86,4 +90,5 @@ if __name__ == "__main__":
             print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}, True Loss: {true_loss.item():.4f}")
             losses.append(loss.item())
 
+    print("Training completed.")
     print("final loss:", loss.item())
