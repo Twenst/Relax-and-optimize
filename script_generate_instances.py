@@ -2,16 +2,21 @@ import sys
 sys.path.append('../')
 
 import os
+import argparse
 from gurobipy import GRB
 from cflinstance import CFLInstance
 from utils import Constants
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("number_of_instances", nargs="?", type=int, default=100)
+    args = parser.parse_args()
+
     os.makedirs(Constants.instancesDatasetPath, exist_ok=True)
-    number_of_instances = 100
+    number_of_instances = args.number_of_instances
     for seed in range(number_of_instances):
         print(f"{seed}/{number_of_instances}")
-        instance = CFLInstance(n_facilities=10, n_clients=50, seed=seed, rho=0.5)
+        instance = CFLInstance(n_facilities=25, n_clients=100, seed=seed, rho=0.5)
         val, times = instance.solve()
         if instance.m.status == GRB.OPTIMAL:
             real_obj = instance.m.ObjVal
