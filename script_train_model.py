@@ -62,11 +62,11 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep=15):
 
 if __name__ == "__main__":
     print("Loading instances and solutions...", end="")
-    start_time = time.time()
+    start_time = time()
     instances_and_sols = [CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(300)]
     instances = [inst["instance"] for inst in instances_and_sols]
     solutions = [sol["solution"] for sol in instances_and_sols]
-    end_time = time.time()
+    end_time = time()
     print(f"Done. Time taken: {end_time - start_time:.2f} seconds.")
     
     X_train, y_train, X_test, y_test = generate_dataset(instances, solutions)
