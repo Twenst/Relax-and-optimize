@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
+from typing import List
 
 def generate_dataset(instances, solutions):
     x = []
@@ -33,7 +34,7 @@ def generate_dataset(instances, solutions):
     
     return x_train, y_train, x_test, y_test
 
-def compute_loss(thetas, instances: list[CFLInstance], y_true, n_rep = 15):
+def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep = 15):
     fy_score = - torch.dot(thetas.reshape(-1), y_true)
     true_loss = torch.tensor(0.0, dtype=torch.float32)
     idx = 0
