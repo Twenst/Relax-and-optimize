@@ -33,7 +33,7 @@ def generate_dataset(instances, solutions):
     
     return x_train, y_train, x_test, y_test
 
-def compute_loss(thetas, instances: list[cflinstance.CFLInstance], y_true, n_rep = 15):
+def compute_loss(thetas, instances, y_true, n_rep = 15):
     fy_score = - torch.dot(thetas.reshape(-1), y_true)
     true_loss = torch.tensor(0.0, dtype=torch.float32)
     idx = 0
