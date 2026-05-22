@@ -63,7 +63,7 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, n_rep=15):
 if __name__ == "__main__":
     print("Loading instances and solutions...", end="")
     start_time = time()
-    instances_and_sols = [CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(300)]
+    instances_and_sols = [CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz") for i in range(150)]
     instances = [inst["instance"] for inst in instances_and_sols]
     solutions = [sol["solution"] for sol in instances_and_sols]
     end_time = time()
@@ -82,15 +82,15 @@ if __name__ == "__main__":
     # training loop
     losses = []
     for epoch in range(50):
-        # for batch_X, batch_y in dataloader:
-            pred = model(X_train)
-            # print("pred", pred)
-            loss = compute_loss(pred, train_instances, y_train)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
-            losses.append(loss.item())
+        start_time = time()
+        pred = model(X_train)
+        loss = compute_loss(pred, train_instances, y_train, n_rep=10)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        end_time = time()
+        print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}, took {end_time - start_time:.2f} seconds.")
+        losses.append(loss.item())
 
     print("Training completed.")
     print("final loss:", loss.item())
