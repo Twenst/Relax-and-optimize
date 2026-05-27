@@ -66,14 +66,19 @@ if __name__ == "__main__":
     instances_and_sols = []
 
     nb_instances = 150
+    load_times = []
     for i in range(nb_instances):
+        start_load_time = time()
         instances_and_sols.append(CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz"))
+        end_load_time = time()
+        load_times.append(end_load_time - start_load_time)
         print(f"Loaded instance {i+1}/{nb_instances}", end="\r")
     instances = [inst["instance"] for inst in instances_and_sols]
     solutions = [sol["solution"] for sol in instances_and_sols]
     end_time = time()
     print(f"Done. Time taken: {end_time - start_time:.2f} seconds.")
-    
+    print(f"Average load time: {np.mean(load_times):.4f} seconds.")
+
     X_train, y_train, X_test, y_test = generate_dataset(instances, solutions)
     train_instances = instances[:int(np.floor(len(instances)*0.8))]
     dataset = TensorDataset(X_train, y_train)
