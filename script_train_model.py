@@ -1,5 +1,4 @@
 from time import time
-
 from cflinstance import CFLInstance
 import utils
 import numpy as np
@@ -7,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from typing import List
+import argparse
+
 
 def generate_dataset(instances, solutions, config):
     x = []
@@ -76,8 +77,12 @@ def epoch_pass(model, optimizer, X_train, y_train, train_instances, config):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("configFilePath", nargs="?", type=str, default=None)
+    args = parser.parse_args()
+    
     print("Loading configuration...", end="")
-    config = utils.load_config()
+    config = utils.load_config(args.configFilePath)
     print("Done.")
     print("Loading instances and solutions...", end="")
     start_time = time()
