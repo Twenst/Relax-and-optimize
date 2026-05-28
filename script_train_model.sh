@@ -19,7 +19,6 @@
 module load slurm_setup
 export GRB_LICENSE_FILE=/dss/dsshome1/06/go59sal2/gurobi.lic
 module load python/3.10.12-base
-cd Relax-and-optimize
 source .venv/bin/activate
 python script_train_model.py 
 deactivate
