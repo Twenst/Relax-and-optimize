@@ -1,8 +1,25 @@
+import json
+import os
 import numpy as np
+
 
 class Constants:
     baseInstanceDataPath = "data/instances.npz"
     instancesDatasetPath = "data/dataset"
+    configFilePath = "config.json"
+
+    defaultConfig = {
+        "learning_rate": 0.001,
+        "num_epochs": 20,
+        "batch_size": 32,
+        "hidden_size": 64,
+        "n_rep": 10,
+        "n_instances": 150,
+        "test_size": 0.2,
+        "timeout": 50e-3,
+        "milp_mode": True,
+    }
+
 
 def parse_vars(vars_vect, n_facilities, n_clients):
     x = vars_vect[0 : n_facilities * n_clients]
@@ -17,3 +34,27 @@ def compute_gaps_from_callback(callback_vals):
         callback_vals[:, 0]
     )
     return gaps
+
+
+def save_config(config):
+    with open(Constants.configFilePath, "w") as f:
+        json.dump(config, f, indent=4)
+
+
+def load_config(configFilePath=None):
+    if configFilePath is None:
+        configFilePath = Constants.configFilePath
+        
+    if not os.path.exists(configFilePath):
+        print(f"Config file not found: {configFilePath}, using default configuration.")
+        config = {}
+    else:
+        with open(configFilePath, "r") as f:
+            config = json.load(f)
+
+    for key in Constants.defaultConfig:
+        if key not in config:
+            print(f"Using default value for {key}: {Constants.defaultConfig[key]}")
+            config[key] = Constants.defaultConfig[key]
+
+    return config

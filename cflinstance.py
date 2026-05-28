@@ -376,3 +376,9 @@ class CFLInstance:
         self.solve(timeout=timeout, gap=1e-9)
         
         return self.m
+
+    def get_solved_relaxation_using_thetas(self, thetas):
+        perturbed_instance = self.get_perturbed_relaxation(thetas)
+        perturbed_instance.Params.OutputFlag = 0
+        perturbed_instance.optimize()
+        return perturbed_instance
