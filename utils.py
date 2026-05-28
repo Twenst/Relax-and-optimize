@@ -7,6 +7,7 @@ class Constants:
     baseInstanceDataPath = "data/instances.npz"
     instancesDatasetPath = "data/dataset"
     configFilePath = "config.json"
+    savedModelsPath = "saved_models"
 
     defaultConfig = {
         "learning_rate": 0.001,
@@ -57,4 +58,11 @@ def load_config(configFilePath=None):
             print(f"Using default value for {key}: {Constants.defaultConfig[key]}")
             config[key] = Constants.defaultConfig[key]
 
+    config["n_instances"] = min(config["n_instances"], len(os.listdir(Constants.instancesDatasetPath)))
+
+
     return config
+
+def time_to_date(time_int):
+    import datetime
+    return datetime.datetime.fromtimestamp(time_int).strftime('%Y-%m-%d_%H-%M-%S')

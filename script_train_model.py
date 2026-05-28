@@ -1,3 +1,4 @@
+import os
 from time import time
 from cflinstance import CFLInstance
 import utils
@@ -41,21 +42,21 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
     idx = 0
     for instance in instances:
         # idx jsqu'a idx + instance.n_facilities
-        inst_thetas = thetas[idx: idx + instance.n_facilities].detach().numpy().reshape(-1)
+        inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1)
         
         # compute E[O.y] where O is noised thetas and y is the solution of the model with those noised thetas
         esp = torch.tensor(0.0, dtype=torch.float32)
         
         for _ in range(config["n_rep"]):
-            noised_thetas = inst_thetas + np.random.normal(0, 0.2, size=inst_thetas.shape)
+            noised_thetas = inst_thetas + torch.randn_like(inst_thetas) * 0.2
             if config["milp_mode"]:
-                thetaed_model = instance.get_solved_model_using_thetas(noised_thetas, timeout=50e-3)
+                thetaed_model = instance.get_solved_model_using_thetas(noised_thetas.detach().numpy(), timeout=50e-3)
             else:
-                thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas)
+                thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas.detach().numpy())
 
             _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
             y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
-            esp = esp - torch.dot(y_vals, thetas[idx: idx + instance.n_facilities].reshape(-1))
+            esp = esp - torch.dot(y_vals, noised_thetas)
                     
         # esp = np.max(esp, axis=0)
         fy_score = fy_score + esp / config["n_rep"]
@@ -117,3 +118,6 @@ if __name__ == "__main__":
 
     print("Training completed.")
     print("final loss:", loss.item())
+    
+    # save model
+    torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/model{utils.time_to_date(int(time()))}.pth")
