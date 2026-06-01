@@ -18,6 +18,7 @@ class Constants:
         "n_instances": 150,
         "test_size": 0.2,
         "timeout": 50e-3,
+        "hidden_dims": [],
         "milp_mode": True,
     }
 

@@ -41,18 +41,19 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
     fy_score = torch.dot(thetas.reshape(-1), y_true)
     idx = 0
     for instance in instances:
-        # idx jsqu'a idx + instance.n_facilities
+        # idx : idx + instance.n_facilities
         inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1)
         
-        # compute E[O.y] where O is noised thetas and y is the solution of the model with those noised thetas
+        # compute E[O.y(O)] where O is noised thetas and y is the solution of the model with those noised thetas
         esp = torch.tensor(0.0, dtype=torch.float32)
         
         for _ in range(config["n_rep"]):
             noised_thetas = inst_thetas + torch.randn_like(inst_thetas) * 0.2
+            noised_thetas_arr = noised_thetas.detach().numpy()
             if config["milp_mode"]:
-                thetaed_model = instance.get_solved_model_using_thetas(noised_thetas.detach().numpy(), timeout=50e-3)
+                thetaed_model = instance.get_solved_model_using_thetas(noised_thetas_arr, timeout=50e-3)
             else:
-                thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas.detach().numpy())
+                thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas_arr)
 
             _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
             y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
@@ -64,6 +65,11 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
         idx += instance.n_facilities
     return fy_score
 
+def train_test_instances_split(instances, test_size):
+    n_inst = len(instances)
+    split_idx = int(np.floor(n_inst*(1 - test_size)))
+    return instances[:split_idx], instances[split_idx:]
+
 def epoch_pass(model, optimizer, X_train, y_train, train_instances, config):
     start_time = time()
     pred = model(X_train)
@@ -72,9 +78,8 @@ def epoch_pass(model, optimizer, X_train, y_train, train_instances, config):
     loss.backward()
     optimizer.step()
     end_time = time()
-    print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}, took {end_time - start_time:.2f} seconds.")
     
-    return loss
+    return loss, end_time - start_time
 
 
 if __name__ == "__main__":
@@ -88,7 +93,7 @@ if __name__ == "__main__":
     print("Loading instances and solutions...", end="")
     start_time = time()
     instances_and_sols = []
-
+    
     load_times = []
     for i in range(config["n_instances"]):
         start_load_time = time()
@@ -104,20 +109,34 @@ if __name__ == "__main__":
     print(f"Done. Time taken: {end_time - start_time:.2f} seconds, average load time: {np.mean(load_times):.4f} seconds.")
 
     X_train, y_train, X_test, y_test = generate_dataset(instances, solutions, config)
-    train_instances = instances[:int(np.floor(len(instances)*(1 - config["test_size"])))]
-    
-    model = nn.Linear(X_train.shape[1], 1)
+    train_inst, test_inst = train_test_instances_split(instances, config["test_size"])
+
+    layer_sizes = config["hidden_dims"]
+    layer_sizes.insert(0, X_train.shape[1])
+    layer_sizes.append(1)
+    model = nn.Sequential()
+    for i in range(len(layer_sizes) - 1):
+        model.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+        model.append(nn.ReLU())
 
     optimizer = optim.SGD(model.parameters(), lr=config["learning_rate"])
 
     print("Starting training...")
     losses = []
     for epoch in range(config["num_epochs"]):
-        loss = epoch_pass(model, optimizer, X_train, y_train, train_instances, config)
+        loss, time_took = epoch_pass(model, optimizer, X_train, y_train, train_inst, config)
+        print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, took {time_took:.2f} seconds.")
         losses.append(loss.item())
 
     print("Training completed.")
     print("final loss:", loss.item())
     
+    print("Evaluating on test set...")
+    with torch.no_grad():
+        pred_test = model(X_test)
+        test_loss = compute_loss(pred_test, test_inst, y_test, config)
+    print(f"Test Loss: {test_loss.item():.4f}")
+    
     # save model
+    os.makedirs(utils.Constants.savedModelsPath, exist_ok=True)
     torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/model{utils.time_to_date(int(time()))}.pth")
