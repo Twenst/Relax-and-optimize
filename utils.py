@@ -10,12 +10,13 @@ class Constants:
     savedModelsPath = "saved_models"
 
     defaultConfig = {
-        "learning_rate": 0.001,
-        "num_epochs": 20,
-        "batch_size": 32,
+        "learning_rate": 0.0001,
+        "num_epochs": 10,
+        "batch_size": 10,
         "hidden_size": 64,
         "n_rep": 10,
         "n_instances": 150,
+        "train_size": 0.6,
         "test_size": 0.2,
         "timeout": 50e-3,
         "hidden_dims": [],
