@@ -36,12 +36,13 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
         fy_score = fy_score - esp / config["n_rep"]
     
         idx += instance.n_facilities
-    return fy_score
+    return fy_score/len(instances)
 
 def epoch_pass(model, optimizer, data: Data, config):
     start_time = time()
     data.train.shuffle()
     total_loss = torch.tensor(0.0, dtype=torch.float32)
+    n_batches = 0
     for batch in data.train.get_batches(config["batch_size"]):
         pred = model(batch.X)
         loss = compute_loss(pred, batch.instances, batch.y, config)
@@ -49,13 +50,13 @@ def epoch_pass(model, optimizer, data: Data, config):
         loss.backward()
         optimizer.step()
         total_loss += loss
-    total_loss /= len(data.train.instances)    
+        n_batches += 1
+    total_loss /= n_batches    
     
     # validation loss
     with torch.no_grad():
         pred = model(data.val.X)
         val_loss = compute_loss(pred, data.val.instances, data.val.y, config)
-        val_loss /= len(data.val.instances)    
     end_time = time()
     
     return total_loss, val_loss, end_time - start_time

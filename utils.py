@@ -19,8 +19,8 @@ class Constants:
         "train_size": 0.6,
         "test_size": 0.2,
         "timeout": 50e-3,
-        "hidden_dims": [],
-        "milp_mode": True,
+        "hidden_dims": [32],
+        "milp_mode": False,
     }
 
 
