@@ -1,5 +1,14 @@
 #!/bin/bash
-#SBATCH -J Run_MILP
+
+# Script generator for SLURM submission scripts
+# Usage: ./gen_script.sh <config>
+
+CONFIG_DIR="$1"
+CONFIG_BASENAME=$(basename "$CONFIG_DIR")
+
+# Generate SLURM script
+cat > "launch_script_${CONFIG_BASENAME}.sh" <<EOF
+#SBATCH -J $CONFIG_BASENAME
 #SBATCH -D ./
 #SBATCH -o ./%x.%A_%a.%N.out
 #SBATCH -e ./%x.%A_%a.%N.err
@@ -20,5 +29,8 @@ module load slurm_setup
 export GRB_LICENSE_FILE=/dss/dsshome1/06/go59sal2/gurobi.lic
 module load python/3.10.12-base
 source .venv/bin/activate
-python script_train_model.py 
+python script_train_model.py $CONFIG_DIR
 deactivate
+EOF
+
+chmod +x "launch_script_${CONFIG_BASENAME}.sh"
