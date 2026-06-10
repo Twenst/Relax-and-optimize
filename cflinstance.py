@@ -198,6 +198,8 @@ class CFLInstance:
 
         callback_vals = []
         callback_times = []
+        
+        self.m.reset()  # Reset the model to clear any previous optimization results
 
         def callback(model, where):
             if where == gp.GRB.Callback.MIP:
