@@ -8,6 +8,7 @@ CONFIG_BASENAME=$(basename "$CONFIG_DIR")
 
 # Generate SLURM script
 cat > "launch_script_${CONFIG_BASENAME}.sh" <<EOF
+#!/bin/bash
 #SBATCH -J $CONFIG_BASENAME
 #SBATCH -D ./
 #SBATCH -o ./%x.%A_%a.%N.out
