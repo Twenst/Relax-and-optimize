@@ -12,6 +12,6 @@ for config_file in "$CONFIG_DIR"/*; do
 		echo "Launching job for config: $config_file"
 		# "$SCRIPT_DIR/script_train_model.sh" "$config_file"
 		"$SCRIPT_DIR/gen_script.sh" "$config_file"
-		"../launch_script_$(basename "$config_file").sh"
+		# "../launch_script_$(basename "$config_file").sh"
 	fi
 done
