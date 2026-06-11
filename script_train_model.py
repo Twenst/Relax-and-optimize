@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import List
 import argparse
-from dataset import Data
+from dataset import Data, load_instance_and_solution
 
 
 def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
@@ -70,24 +70,8 @@ if __name__ == "__main__":
     config = utils.load_config(args.configFilePath)
     print("Done.")
     print("Loading instances and solutions...", end="")
-    start_time = time()
-    instances_and_sols = []
     
-    load_times = []
-    for i in range(config["n_instances"]):
-        start_load_time = time()
-        instances_and_sols.append(CFLInstance.load_instance_and_solution(f"{utils.Constants.instancesDatasetPath}/instance_{i}.npz"))
-        end_load_time = time()
-        load_times.append(end_load_time - start_load_time)
-        print(f"Loaded instance {i+1}/{config['n_instances']} (took {end_load_time - start_load_time:.4f} seconds)", end="\r")
-        
-    instances = [inst["instance"] for inst in instances_and_sols]
-    solutions = [sol["solution"] for sol in instances_and_sols]
-    end_time = time()
-    
-    print(f"Done. Time taken: {end_time - start_time:.2f} seconds, average load time: {np.mean(load_times):.4f} seconds.")
-
-    data = Data(instances, solutions, config)
+    data = load_instance_and_solution(utils.Constants.instancesDatasetPath, config, print_load_time=True)
 
     layer_sizes = config["hidden_dims"]
     layer_sizes.insert(0, data.train.X.shape[1])
@@ -117,4 +101,6 @@ if __name__ == "__main__":
     
     # save model
     os.makedirs(utils.Constants.savedModelsPath, exist_ok=True)
-    torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/model{utils.time_to_date(int(time()))}.pth")
+    configId = f"epochs{config['num_epochs']}_lr{config['learning_rate']}_hidden{config['hidden_dims']}"
+    model_name = f"model_{configName}_{utils.time_to_date(int(time()))}.pth"
+    torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/{model_name}")
