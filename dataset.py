@@ -70,12 +70,14 @@ class Data:
     def __init__(self, instances, solutions, config):
         train_size = config["train_size"]
         test_size = config["test_size"]
-        split_idx1 = int(np.floor(len(instances)*(1 - train_size)))
+        split_idx1 = int(np.floor(len(instances)*train_size))
         split_idx2 = int(np.floor(len(instances)*(1 - train_size - test_size)))
         
         self.train = Dataset.init_from_solutions(instances[:split_idx1], solutions[:split_idx1])
         self.test = Dataset.init_from_solutions(instances[split_idx1:split_idx1+split_idx2], solutions[split_idx1:split_idx1+split_idx2])
         self.val = Dataset.init_from_solutions(instances[split_idx1+split_idx2:], solutions[split_idx1+split_idx2:])
+        
+        print(split_idx1, split_idx2)
         
         
 def load_instance_and_solution(file_path, config, print_load_time=False):
