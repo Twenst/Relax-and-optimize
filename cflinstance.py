@@ -361,7 +361,10 @@ class CFLInstance:
                 inst.y[i].start = data["y"][i]
         return {"instance": inst, "solution": {"x": data["x"], "y": data["y"]} if data["solved"] else None}
     
-    def get_solved_model_using_thetas(self, thetas, timeout=60):
+    def get_solved_model_using_thetas(self, thetas, timeout=60, shift_times=False):
+        if shift_times:
+            import time
+            start_time = time.time()
         perturbed_instance = self.get_perturbed_relaxation(thetas)
 
         perturbed_instance.Params.OutputFlag = 0
@@ -374,13 +377,23 @@ class CFLInstance:
             perturbed_instance.getVars(), self.n_facilities, self.n_clients
         )
         self.init_warm_start(x_vals=x_vals, y_vals=y_vals)
+        if shift_times:
+            elapsed_time = time.time() - start_time
         
-        self.solve(timeout=timeout, gap=1e-9)
+        values, times = self.solve(timeout=timeout, gap=1e-9)
+        if shift_times:
+            times = [t + elapsed_time for t in times]
         
-        return self.m
+        return self.m, values, times
 
     def get_solved_relaxation_using_thetas(self, thetas):
         perturbed_instance = self.get_perturbed_relaxation(thetas)
         perturbed_instance.Params.OutputFlag = 0
         perturbed_instance.optimize()
         return perturbed_instance
+    
+    def discard_warm_start(self):
+        for i in range(self.n_facilities):
+            for j in range(self.n_clients):
+                self.x[i, j].start = gp.GRB.UNDEFINED
+            self.y[i].start = gp.GRB.UNDEFINED

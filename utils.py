@@ -1,6 +1,7 @@
 import json
 import os
 import numpy as np
+from torch import nn
 
 
 class Constants:
@@ -13,7 +14,6 @@ class Constants:
         "learning_rate": 0.0001,
         "num_epochs": 10,
         "batch_size": 10,
-        "hidden_size": 64,
         "n_rep": 10,
         "n_instances": 150,
         "train_size": 0.6,
@@ -68,3 +68,19 @@ def load_config(configFilePath=None):
 def time_to_date(time_int):
     import datetime
     return datetime.datetime.fromtimestamp(time_int).strftime('%Y-%m-%d_%H-%M-%S')
+
+def load_linear_nn_from_dict(w_dict):
+    layer_sizes = []
+    
+    # Look for weight sizes to determine layer sizes
+    for i in range(len(w_dict)//2):
+        layer_sizes.append(w_dict[f"{2*i}.weight"].shape[1])
+    layer_sizes.append(1)
+    
+    model = nn.Sequential()
+    for i in range(len(layer_sizes) - 1):
+        model.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+        if i != len(layer_sizes) - 2:
+            model.append(nn.ReLU())
+    
+    return model

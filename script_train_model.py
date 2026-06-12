@@ -102,5 +102,5 @@ if __name__ == "__main__":
     # save model
     os.makedirs(utils.Constants.savedModelsPath, exist_ok=True)
     configId = f"epochs{config['num_epochs']}_lr{config['learning_rate']}_hidden{config['hidden_dims']}"
-    model_name = f"model_{configName}_{utils.time_to_date(int(time()))}.pth"
+    model_name = f"model_{configId}_{utils.time_to_date(int(time()))}.pth"
     torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/{model_name}")

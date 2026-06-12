@@ -1,5 +1,7 @@
+from time import time
 import numpy as np
 import torch
+from cflinstance import CFLInstance
 
 class Dataset:
     def __init__(self, instances, x, y):
@@ -34,6 +36,12 @@ class Dataset:
     @property
     def y(self):
         return torch.tensor(np.concatenate(self._y, axis=0), dtype=torch.float32)
+    
+    def x_i(self, i):
+        return torch.tensor(self._x[i], dtype=torch.float32)
+    
+    def y_i(self, i):
+        return torch.tensor(self._y[i], dtype=torch.float32)
 
     def shuffle_instances(self):
         # shuffle the dataset while keeping the same order between X, y and insts
@@ -68,3 +76,27 @@ class Data:
         self.train = Dataset.init_from_solutions(instances[:split_idx1], solutions[:split_idx1])
         self.test = Dataset.init_from_solutions(instances[split_idx1:split_idx1+split_idx2], solutions[split_idx1:split_idx1+split_idx2])
         self.val = Dataset.init_from_solutions(instances[split_idx1+split_idx2:], solutions[split_idx1+split_idx2:])
+        
+        
+def load_instance_and_solution(file_path, config, print_load_time=False):
+    instances_and_sols = []
+    
+    load_times = []
+    start_time = time()
+    for i in range(config["n_instances"]):
+        start_load_time = time()
+        instances_and_sols.append(CFLInstance.load_instance_and_solution(f"{file_path}/instance_{i}.npz"))
+        end_load_time = time()
+        load_times.append(end_load_time - start_load_time)
+        if print_load_time:
+            print(f"Loaded instance {i+1}/{config['n_instances']} (took {end_load_time - start_load_time:.4f} seconds)", end="\r")
+        
+    instances = [inst["instance"] for inst in instances_and_sols]
+    solutions = [sol["solution"] for sol in instances_and_sols]
+    end_time = time()
+    
+    if print_load_time:
+        print(f"Done. Time taken: {end_time - start_time:.2f} seconds, average load time: {np.mean(load_times):.4f} seconds.")
+
+    data = Data(instances, solutions, config)
+    return data
