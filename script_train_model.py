@@ -71,7 +71,7 @@ if __name__ == "__main__":
     print("Done.")
     print("Loading instances and solutions...", end="")
     
-    data = load_instance_and_solution(utils.Constants.instancesDatasetPath, config, print_load_time=True)
+    data = load_instance_and_solution(utils.Constants.instancesDatasetPath, config, print_load_time=True, keep_warm_start=False)
 
     layer_sizes = config["hidden_dims"]
     layer_sizes.insert(0, data.train.X.shape[1])

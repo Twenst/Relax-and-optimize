@@ -80,7 +80,7 @@ class Data:
         print(split_idx1, split_idx2)
         
         
-def load_instance_and_solution(file_path, config, print_load_time=False):
+def load_instance_and_solution(file_path, config, print_load_time=False, keep_warm_start=True):
     instances_and_sols = []
     
     load_times = []
@@ -94,6 +94,9 @@ def load_instance_and_solution(file_path, config, print_load_time=False):
             print(f"Loaded instance {i+1}/{config['n_instances']} (took {end_load_time - start_load_time:.4f} seconds)", end="\r")
         
     instances = [inst["instance"] for inst in instances_and_sols]
+    if not keep_warm_start:
+        for inst in instances:
+            inst.discard_warm_start()
     solutions = [sol["solution"] for sol in instances_and_sols]
     end_time = time()
     
