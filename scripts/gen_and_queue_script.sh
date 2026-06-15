@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Script generator for SLURM submission scripts
-# Usage: ./gen_script.sh <config>
-
 CONFIG_DIR="$1"
 CONFIG_BASENAME=$(basename "$CONFIG_DIR")
 
@@ -23,7 +20,7 @@ cat > "launch_script_${CONFIG_BASENAME}.sh" <<EOF
 
 # Resources (adjust as needed)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=8G
 
 module load slurm_setup
@@ -35,3 +32,4 @@ deactivate
 EOF
 
 chmod +x "launch_script_${CONFIG_BASENAME}.sh"
+sbatch "launch_script_${CONFIG_BASENAME}.sh"
