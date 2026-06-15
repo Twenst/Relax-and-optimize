@@ -10,6 +10,6 @@ shopt -s nullglob
 for config_file in "$CONFIG_DIR"/*; do
 	if [[ -f "$config_file" ]]; then
 		echo "Launching job for config: $config_file"
-		"$SCRIPT_DIR/gen_script.sh" "$config_file"
+		"$SCRIPT_DIR/gen_and_queue_script.sh" "$config_file"
 	fi
 done
