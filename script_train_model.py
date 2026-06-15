@@ -38,6 +38,27 @@ def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
         idx += instance.n_facilities
     return fy_score/len(instances)
 
+def compute_val_loss(thetas, instances: List[CFLInstance], y_true):
+    '''Same as compute_loss but without the noise perturbation. Result is not differentiable.'''
+    
+    fy_score = torch.dot(thetas.reshape(-1), y_true)
+    idx = 0
+    for instance in instances:
+        # idx : idx + instance.n_facilities
+        inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1).detach().numpy()
+        
+        noised_thetas = inst_thetas + torch.randn_like(torch.tensor(inst_thetas)) * 0.2
+
+        thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas)
+
+        _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
+        y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
+                    
+        fy_score = fy_score - torch.dot(noised_thetas, y_vals)
+    
+        idx += instance.n_facilities
+    return fy_score/len(instances)
+
 def epoch_pass(model, optimizer, data: Data, config):
     start_time = time()
     data.train.shuffle()
@@ -56,7 +77,7 @@ def epoch_pass(model, optimizer, data: Data, config):
     # validation loss
     with torch.no_grad():
         pred = model(data.val.X)
-        val_loss = compute_loss(pred, data.val.instances, data.val.y, config)
+        val_loss = compute_val_loss(pred, data.val.instances, data.val.y)
     end_time = time()
     
     return total_loss, val_loss, end_time - start_time
@@ -87,20 +108,24 @@ if __name__ == "__main__":
 
     print("Starting training...")
     losses = []
+    best_model = None
+    best_val_loss = float("inf")
+    best_val_loss_epoch = -1
     for epoch in range(config["num_epochs"]):
         loss, val_loss, time_took = epoch_pass(model, optimizer, data, config)
         print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}, took {time_took:.2f} seconds.")
         losses.append(loss.item())
 
+        if val_loss.item() < best_val_loss:
+            best_val_loss = val_loss.item()
+            best_model = model.state_dict()
+            best_val_loss_epoch = epoch
     print("Training completed.")
     
-    with torch.no_grad():
-        pred_test = model(data.test.X)
-        test_loss = compute_loss(pred_test, data.test.instances, data.test.y, config)
-    print(f"Test Loss: {test_loss.item():.4f}")
+    print(f"Best validation loss achieved at epoch {best_val_loss_epoch+1} with val loss {best_val_loss:.4f}.")
     
     # save model
     os.makedirs(utils.Constants.savedModelsPath, exist_ok=True)
     configId = f"epochs{config['num_epochs']}_lr{config['learning_rate']}_hidden{config['hidden_dims']}"
     model_name = f"model_{configId}_{utils.time_to_date(int(time()))}.pth"
-    torch.save(model.state_dict(), f"{utils.Constants.savedModelsPath}/{model_name}")
+    torch.save(best_model, f"{utils.Constants.savedModelsPath}/{model_name}")
