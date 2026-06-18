@@ -50,9 +50,9 @@ def compute_val_loss(thetas, instances: List[CFLInstance], y_true):
         thetaed_model = instance.get_solved_relaxation_using_thetas(inst_thetas)
 
         _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
-        y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
+        y_vals = np.array([v.X for v in y_vals], dtype=torch.float32)
                     
-        fy_score = fy_score - torch.dot(inst_thetas, y_vals)
+        fy_score = fy_score - np.dot(inst_thetas, y_vals)
     
         idx += instance.n_facilities
     return fy_score/len(instances)
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     best_val_loss_epoch = -1
     for epoch in range(config["num_epochs"]):
         loss, val_loss, time_took = epoch_pass(model, optimizer, data, config)
-        print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}, took {time_took:.2f} seconds.")
+        print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, Val Loss: {val_loss:.4f}, took {time_took:.2f} seconds.")
         losses.append(loss.item())
 
         if val_loss.item() < best_val_loss:
