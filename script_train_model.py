@@ -50,7 +50,7 @@ def compute_val_loss(thetas, instances: List[CFLInstance], y_true):
         thetaed_model = instance.get_solved_relaxation_using_thetas(inst_thetas)
 
         _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
-        y_vals = np.array([v.X for v in y_vals], dtype=torch.float32)
+        y_vals = np.array([v.X for v in y_vals], dtype=np.float32)
                     
         fy_score = fy_score - np.dot(inst_thetas, y_vals)
     
