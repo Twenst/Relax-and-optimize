@@ -47,14 +47,12 @@ def compute_val_loss(thetas, instances: List[CFLInstance], y_true):
         # idx : idx + instance.n_facilities
         inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1).detach().numpy()
         
-        noised_thetas = inst_thetas + torch.randn_like(torch.tensor(inst_thetas)) * 0.2
-
-        thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas)
+        thetaed_model = instance.get_solved_relaxation_using_thetas(inst_thetas)
 
         _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
         y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
                     
-        fy_score = fy_score - torch.dot(noised_thetas, y_vals)
+        fy_score = fy_score - torch.dot(inst_thetas, y_vals)
     
         idx += instance.n_facilities
     return fy_score/len(instances)
