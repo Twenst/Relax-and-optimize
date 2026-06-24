@@ -20,21 +20,24 @@ class Constants:
         "test_size": 0.2,
         "timeout": 50e-3,
         "hidden_dims": [32],
-        "milp_mode": False,
     }
 
 
 def parse_vars(vars_vect, n_facilities, n_clients):
+    '''
+    Parse the variable vector into facility and client variables.
+    There are n_facilities * n_clients X variables and n_clients Y variables.
+    '''
     x = vars_vect[0 : n_facilities * n_clients]
     y = vars_vect[n_facilities * n_clients :]
     x = np.reshape(x, (n_facilities, n_clients))
     return x, y
 
 
-def compute_gaps_from_callback(callback_vals):
-    callback_vals = np.array(callback_vals)
-    gaps = np.abs(callback_vals[:, 0] - callback_vals[:, 1]) / np.abs(
-        callback_vals[:, 0]
+def compute_gaps_from_callback(obj_bound_arr):
+    obj_bound_arr = np.array(obj_bound_arr)
+    gaps = np.abs(obj_bound_arr[:, 0] - obj_bound_arr[:, 1]) / np.abs(
+        obj_bound_arr[:, 0]
     )
     return gaps
 
@@ -84,3 +87,44 @@ def load_linear_nn_from_dict(w_dict):
             model.append(nn.ReLU())
     
     return model
+
+def get_avg_first_feasible_solution_time(times):
+    avg_times = [time_list[0] for time_list in times]
+    return np.mean(avg_times)
+
+def get_centered_times(times):
+    centered_times = []
+    for time_list in times:
+        t0 = time_list[0]
+        centered_times.append([t - t0 for t in time_list])
+    return centered_times
+
+def get_avg_gap_over_time(gaps, times):
+    # First, we need to align the gaps based on time. We can create a common time grid and interpolate the gaps.
+    common_time_grid = np.linspace(0, max(max(times)), num=100)  # 100 points from 0 to max time
+    avg_gaps = []
+    
+    for gap_list, time_list in zip(gaps, times):
+        # Interpolate gaps at the common time grid
+        interpolated_gaps = np.interp(common_time_grid, time_list, gap_list)
+        avg_gaps.append(interpolated_gaps)
+    
+    # Now compute the average gap at each point in the common time grid
+    avg_gaps = np.mean(avg_gaps, axis=0)
+    
+    return common_time_grid, avg_gaps
+
+def get_time_to_reach_gap_threshold(gaps, times, threshold):
+    """
+    Compute avg, min, max time to get to a certain gap threshold (e.g., 5%) for both methods.
+    """
+    times_to_threshold = []
+    for gap_list, time_list in zip(gaps, times):
+        time_to_threshold = None
+        for gap, time in zip(gap_list, time_list):
+            if gap <= threshold:
+                time_to_threshold = time
+                break
+        if time_to_threshold is not None:
+            times_to_threshold.append(time_to_threshold)
+    return times_to_threshold

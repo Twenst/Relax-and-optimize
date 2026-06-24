@@ -1,84 +1,12 @@
 import os
 from time import time
-from cflinstance import CFLInstance
 import utils
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
-from typing import List
 import argparse
-from dataset import Data, load_instance_and_solution
-
-
-def compute_loss(thetas, instances: List[CFLInstance], y_true, config):
-    fy_score = torch.dot(thetas.reshape(-1), y_true)
-    idx = 0
-    for instance in instances:
-        # idx : idx + instance.n_facilities
-        inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1)
-        
-        # compute E[O.y(O)] where O is noised thetas and y is the solution of the model with those noised thetas
-        esp = torch.tensor(0.0, dtype=torch.float32)
-        
-        for _ in range(config["n_rep"]):
-            noised_thetas = inst_thetas + torch.randn_like(inst_thetas) * 0.2
-            noised_thetas_arr = noised_thetas.detach().numpy()
-            if config["milp_mode"]:
-                thetaed_model = instance.get_solved_model_using_thetas(noised_thetas_arr, timeout=50e-3)
-            else:
-                thetaed_model = instance.get_solved_relaxation_using_thetas(noised_thetas_arr)
-
-            _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
-            y_vals = torch.tensor([v.X for v in y_vals], dtype=torch.float32)
-            esp = esp + torch.dot(noised_thetas, y_vals)
-                    
-        fy_score = fy_score - esp / config["n_rep"]
-    
-        idx += instance.n_facilities
-    return fy_score/len(instances)
-
-def compute_val_loss(thetas, instances: List[CFLInstance], y_true):
-    '''Same as compute_loss but without the noise perturbation. Result is not differentiable.'''
-    
-    fy_score = torch.dot(thetas.reshape(-1), y_true)
-    idx = 0
-    for instance in instances:
-        # idx : idx + instance.n_facilities
-        inst_thetas = thetas[idx: idx + instance.n_facilities].reshape(-1).detach().numpy()
-        
-        thetaed_model = instance.get_solved_relaxation_using_thetas(inst_thetas)
-
-        _, y_vals = utils.parse_vars(thetaed_model.getVars(), instance.n_facilities, instance.n_clients)
-        y_vals = np.array([v.X for v in y_vals], dtype=np.float32)
-                    
-        fy_score = fy_score - np.dot(inst_thetas, y_vals)
-    
-        idx += instance.n_facilities
-    return fy_score/len(instances)
-
-def epoch_pass(model, optimizer, data: Data, config):
-    start_time = time()
-    data.train.shuffle()
-    total_loss = torch.tensor(0.0, dtype=torch.float32)
-    n_batches = 0
-    for batch in data.train.get_batches(config["batch_size"]):
-        pred = model(batch.X)
-        loss = compute_loss(pred, batch.instances, batch.y, config)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        total_loss += loss
-        n_batches += 1
-    total_loss /= n_batches    
-    
-    # validation loss
-    with torch.no_grad():
-        pred = model(data.val.X)
-        val_loss = compute_val_loss(pred, data.val.instances, data.val.y)
-    end_time = time()
-    
-    return total_loss, val_loss, end_time - start_time
+from dataset import load_instance_and_solution
+from nn_model import LinearNNModel
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -96,11 +24,7 @@ if __name__ == "__main__":
     layer_sizes.insert(0, data.train.X.shape[1])
     layer_sizes.append(1)
     
-    model = nn.Sequential()
-    for i in range(len(layer_sizes) - 1):
-        model.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
-        if i != len(layer_sizes) - 2:
-            model.append(nn.ReLU())
+    model = LinearNNModel(layer_sizes, data.train.X.shape[1])
 
     optimizer = optim.SGD(model.parameters(), lr=config["learning_rate"])
 
@@ -110,7 +34,7 @@ if __name__ == "__main__":
     best_val_loss = float("inf")
     best_val_loss_epoch = -1
     for epoch in range(config["num_epochs"]):
-        loss, val_loss, time_took = epoch_pass(model, optimizer, data, config)
+        loss, val_loss, time_took = model.epoch_pass(model, optimizer, data, config)
         print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, Val Loss: {val_loss:.4f}, took {time_took:.2f} seconds.")
         losses.append(loss.item())
 
@@ -127,3 +51,83 @@ if __name__ == "__main__":
     configId = f"epochs{config['num_epochs']}_lr{config['learning_rate']}_hidden{config['hidden_dims']}"
     model_name = f"model_{configId}_{utils.time_to_date(int(time()))}.pth"
     torch.save(best_model, f"{utils.Constants.savedModelsPath}/{model_name}")
+    
+    # Evaluation of the model on the test set
+    
+    train_dataset = data.train
+
+    regular_ws_objs = []
+    regular_ws_bounds = []
+    regular_ws_gaps = []
+    regular_ws_times = []
+    perturbed_ws_objs = []
+    perturbed_ws_bounds = []
+    perturbed_ws_gaps = []
+    perturbed_ws_times = []
+
+    for idx, inst in enumerate(train_dataset.instances):
+        # Regular relaxation
+        _, values1, time1 = inst.get_solved_model_using_thetas(np.zeros(inst.n_facilities), shift_times=False)
+        
+        # Perturbed relaxation
+        thetas = model(train_dataset.x_i(idx)).detach().numpy().flatten()
+        _, values2, time2 = inst.get_solved_model_using_thetas(thetas, shift_times=False)
+        
+        gap1 = utils.compute_gaps_from_callback(values1)
+        gap2 = utils.compute_gaps_from_callback(values2)
+
+        regular_ws_objs.append([v[0] for v in values1])
+        regular_ws_bounds.append([v[1] for v in values1])
+        regular_ws_gaps.append(gap1)
+        regular_ws_times.append(time1)
+
+        perturbed_ws_objs.append([v[0] for v in values2])
+        perturbed_ws_bounds.append([v[1] for v in values2])
+        perturbed_ws_gaps.append(gap2)
+        perturbed_ws_times.append(time2)
+
+    # Get centered times
+    avg_first_time_gurobi = utils.get_avg_first_feasible_solution_time(regular_ws_times)
+    centered_time_gurobi = utils.get_centered_times(regular_ws_times)
+    avg_first_time_perturbed = utils.get_avg_first_feasible_solution_time(perturbed_ws_times)
+    centered_time_perturbed = utils.get_centered_times(perturbed_ws_times)
+
+    # Get average gap over time
+    common_time_gurobi, avg_gap_gurobi = utils.get_avg_gap_over_time(regular_ws_gaps, centered_time_gurobi)
+    common_time_perturbed, avg_gap_perturbed = utils.get_avg_gap_over_time(perturbed_ws_gaps, centered_time_perturbed)
+
+    test_results = {}
+
+    for threshold in [0.5, 0.25, 0.1, 0.05, 0.01]:
+        regular_times_to_threshold = utils.get_time_to_reach_gap_threshold(regular_ws_gaps, regular_ws_times, threshold)
+        perturbed_times_to_threshold = utils.get_time_to_reach_gap_threshold(perturbed_ws_gaps, perturbed_ws_times, threshold)
+
+        test_results[f"{threshold*100}% Gap"] = {
+            "regular": regular_times_to_threshold,
+            "perturbed": perturbed_times_to_threshold
+        }
+
+        print(f"Time to reach {threshold*100}% gap:")
+        print(f"Regular WS:         avg={np.mean(regular_times_to_threshold):.2f}s, min={np.min(regular_times_to_threshold):.2f}s, max={np.max(regular_times_to_threshold):.2f}s")
+        print(f"Perturbed WS:       avg={np.mean(perturbed_times_to_threshold):.2f}s, min={np.min(perturbed_times_to_threshold):.2f}s, max={np.max(perturbed_times_to_threshold):.2f}s")
+        
+    # first solution comparison between the two methods
+    proportion_better_first_solution = sum(1 for p, g in zip(perturbed_ws_objs, regular_ws_objs) if p[0] < g[0]) / len(perturbed_ws_objs)
+    proportion_same_first_solution = sum(1 for p, g in zip(perturbed_ws_objs, regular_ws_objs) if p[0] == g[0]) / len(perturbed_ws_objs)
+    print(f"Proportion of instances where perturbed model found a better first solution than Regular WS: {proportion_better_first_solution:.2f}")
+    print(f"Proportion of instances where perturbed model found the same first solution as Regular WS: {proportion_same_first_solution:.2f}")
+
+    proportion_better_first_bound = sum(1 for p, g in zip(perturbed_ws_bounds, regular_ws_bounds) if p[0] < g[0]) / len(perturbed_ws_bounds)
+    proportion_same_first_bound = sum(1 for p, g in zip(perturbed_ws_bounds, regular_ws_bounds) if p[0] == g[0]) / len(perturbed_ws_bounds)
+    print(f"Proportion of instances where perturbed model found a better first bound than Regular WS: {proportion_better_first_bound:.2f}")
+    print(f"Proportion of instances where perturbed model found the same first bound as Regular WS: {proportion_same_first_bound:.2f}")
+
+    # Avg time to reconstruct first solution
+    avg_time_to_first_solution_regular_ws = utils.get_avg_first_feasible_solution_time(regular_ws_times)
+    avg_time_to_first_solution_perturbed_ws = utils.get_avg_first_feasible_solution_time(perturbed_ws_times)
+    print(f"Average time to reconstruct first solution - Regular WS: {avg_time_to_first_solution_regular_ws:.4f}s")
+    print(f"Average time to reconstruct first solution - Perturbed WS: {avg_time_to_first_solution_perturbed_ws:.4f}s")
+    
+    
+    np.savez(f"{utils.Constants.savedModelsPath}/test_results_{configId}_{utils.time_to_date(int(time()))}.npz",
+             test_results=test_results)

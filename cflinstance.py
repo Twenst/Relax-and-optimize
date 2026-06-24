@@ -18,21 +18,14 @@ class CFLInstance:
         self.rho = rho
         self.seed = seed
         if generate_new_data:
-            self.data = self.generate_instance()
+            self.generate_instance_data()
             self.init_model()
             self.status = "unsolved"
         else:
             self.status = "uninitialized"
 
-    def copy_instance_data(self):
-        data = {
-            "transport": self.data["transport"].copy(),
-            "demands": self.data["demands"].copy(),
-            "capacities": self.data["capacities"].copy(),
-            "opening_costs": self.data["opening_costs"].copy(),
-            "facilities": self.data["facilities"].copy(),
-            "clients": self.data["clients"].copy(),
-        }
+    def copy_instance(self):
+        data = self.data.copy()
 
         new_instance = CFLInstance(
             self.n_facilities,
@@ -45,7 +38,12 @@ class CFLInstance:
         new_instance.init_model()
         return new_instance
 
-    def generate_instance(self):
+    def generate_instance_data(self):
+        """
+        Generate instance data for the CFL problem by sampling from the facilities and clients dataset.
+        The capacity and opening costs are adjusted to match the given rho ratio.
+        """
+        
         rng = np.random.default_rng(self.seed)
 
         instancesData = np.load(Constants.baseInstanceDataPath)
@@ -71,7 +69,7 @@ class CFLInstance:
         opening = instancesData["opening_costs"][selected_fac_idx]
         opening *= total_demand / (total_capacity * self.rho)
 
-        return {
+        self.data = {
             "transport": transport,
             "demands": demands,
             "capacities": capacities,
@@ -81,6 +79,9 @@ class CFLInstance:
         }
 
     def init_model(self):
+        """
+        Inits the Gurobi solver for this instance.
+        """
         self.m = gp.Model("CFL")
 
         self.x = self.m.addVars(
@@ -189,7 +190,7 @@ class CFLInstance:
 
     def solve(self, timeout=60, gap=1e-4):
         """
-        Solve the CFL instance. Returns the callback values and times for plotting the convergence curve.
+        Solve the CFL instance. Returns the callback values and times for plotting the convergence curves.
         """
         self.m.Params.OutputFlag = 0
         self.m.Params.MIPGap = gap
@@ -211,25 +212,6 @@ class CFLInstance:
         self.m.optimize(callback=callback)
         self.status = "solved"
         return callback_vals, callback_times
-
-    def unnoised_objective(self):
-        return sum(
-            self.data["transport"][i, j] * self.x[i, j].x
-            for i in range(self.n_facilities)
-            for j in range(self.n_clients)
-        ) + sum(
-            self.data["opening_costs"][i] * self.y[i].x
-            for i in range(self.n_facilities)
-        )
-
-    def get_relaxation(self, noise_level=False):
-        y_noise = np.zeros(self.n_facilities)
-
-        if noise_level:
-            rng = np.random.default_rng(self.seed)
-            y_noise = rng.normal(0, noise_level, self.n_facilities)
-
-        return self.get_perturbed_relaxation(y_noise)
     
     def get_perturbed_relaxation(self, thetas):
         self.m.update()
@@ -372,7 +354,6 @@ class CFLInstance:
         perturbed_instance.optimize()
         
         
-        # warmed_inst = self.copy_instance_data()
         x_vals, y_vals = parse_vars(
             perturbed_instance.getVars(), self.n_facilities, self.n_clients
         )
