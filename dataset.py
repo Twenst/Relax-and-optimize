@@ -60,7 +60,7 @@ class Dataset:
             
     def shuffle(self):
         self.shuffle_instances()
-        self.shuffle_in_instance()
+        # self.shuffle_in_instance() # causes issues with the order of the facilities and the corresponding thetas, so we don't shuffle in instance for now
 
     def get_batches(self, batch_size):
         for i in range(0, len(self.instances), batch_size):
