@@ -34,7 +34,7 @@ if __name__ == "__main__":
     best_val_loss = float("inf")
     best_val_loss_epoch = -1
     for epoch in range(config["num_epochs"]):
-        loss, val_loss, time_took = model.epoch_pass(model, optimizer, data, config)
+        loss, val_loss, time_took = model.epoch_pass(optimizer, data, config)
         print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {loss.item():.4f}, Val Loss: {val_loss:.4f}, took {time_took:.2f} seconds.")
         losses.append(loss.item())
 
@@ -110,24 +110,25 @@ if __name__ == "__main__":
         print(f"Time to reach {threshold*100}% gap:")
         print(f"Regular WS:         avg={np.mean(regular_times_to_threshold):.2f}s, min={np.min(regular_times_to_threshold):.2f}s, max={np.max(regular_times_to_threshold):.2f}s")
         print(f"Perturbed WS:       avg={np.mean(perturbed_times_to_threshold):.2f}s, min={np.min(perturbed_times_to_threshold):.2f}s, max={np.max(perturbed_times_to_threshold):.2f}s")
+        print(f"Relative speedup (Regular / Perturbed): {np.mean(regular_times_to_threshold)/np.mean(perturbed_times_to_threshold):.2f}x")
         
     # first solution comparison between the two methods
     proportion_better_first_solution = sum(1 for p, g in zip(perturbed_ws_objs, regular_ws_objs) if p[0] < g[0]) / len(perturbed_ws_objs)
-    proportion_same_first_solution = sum(1 for p, g in zip(perturbed_ws_objs, regular_ws_objs) if p[0] == g[0]) / len(perturbed_ws_objs)
-    print(f"Proportion of instances where perturbed model found a better first solution than Regular WS: {proportion_better_first_solution:.2f}")
-    print(f"Proportion of instances where perturbed model found the same first solution as Regular WS: {proportion_same_first_solution:.2f}")
-
-    proportion_better_first_bound = sum(1 for p, g in zip(perturbed_ws_bounds, regular_ws_bounds) if p[0] < g[0]) / len(perturbed_ws_bounds)
-    proportion_same_first_bound = sum(1 for p, g in zip(perturbed_ws_bounds, regular_ws_bounds) if p[0] == g[0]) / len(perturbed_ws_bounds)
-    print(f"Proportion of instances where perturbed model found a better first bound than Regular WS: {proportion_better_first_bound:.2f}")
-    print(f"Proportion of instances where perturbed model found the same first bound as Regular WS: {proportion_same_first_bound:.2f}")
-
+    print(f"Perturbed model found a better first solution than Regular WS: {(proportion_better_first_solution*100):.2f}% of the time.")
+    
     # Avg time to reconstruct first solution
     avg_time_to_first_solution_regular_ws = utils.get_avg_first_feasible_solution_time(regular_ws_times)
     avg_time_to_first_solution_perturbed_ws = utils.get_avg_first_feasible_solution_time(perturbed_ws_times)
-    print(f"Average time to reconstruct first solution - Regular WS: {avg_time_to_first_solution_regular_ws:.4f}s")
-    print(f"Average time to reconstruct first solution - Perturbed WS: {avg_time_to_first_solution_perturbed_ws:.4f}s")
-    
-    
+    print(f"Average time to reconstruct first solution:")
+    print(f"Regular WS:     {avg_time_to_first_solution_regular_ws:.4f}s")
+    print(f"Perturbed WS:   {avg_time_to_first_solution_perturbed_ws:.4f}s")
+    print(f"Relative speedup (Regular / Perturbed): {(avg_time_to_first_solution_regular_ws/avg_time_to_first_solution_perturbed_ws):.2f}x")
+
+    test_results["first_solution_comparison"] = {
+        "proportion_better_first_solution": proportion_better_first_solution,
+        "avg_time_to_first_solution_regular_ws": avg_time_to_first_solution_regular_ws,
+        "avg_time_to_first_solution_perturbed_ws": avg_time_to_first_solution_perturbed_ws
+    }
+
     np.savez(f"{utils.Constants.savedModelsPath}/test_results_{configId}_{utils.time_to_date(int(time()))}.npz",
              test_results=test_results)

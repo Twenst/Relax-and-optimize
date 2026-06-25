@@ -42,6 +42,8 @@ class CFLInstance:
         """
         Generate instance data for the CFL problem by sampling from the facilities and clients dataset.
         The capacity and opening costs are adjusted to match the given rho ratio.
+        NEEDS A PREVIOUSLY GENERATED DATASET OF FACILITIES AND CLIENTS POSITIONS, DEMANDS, CAPACITIES AND OPENING COSTS,
+        which can be done via the `data_gen.ipynb` notebook.
         """
         
         rng = np.random.default_rng(self.seed)
@@ -214,6 +216,9 @@ class CFLInstance:
         return callback_vals, callback_times
     
     def get_perturbed_relaxation(self, thetas):
+        """
+        Returns Gurobi model of the associated relaxation with the objective function perturbed by the given thetas.
+        """
         self.m.update()
         relaxation = self.m.relax()
         relaxation.update()
@@ -235,6 +240,10 @@ class CFLInstance:
         return relaxation
 
     def init_warm_start(self, x_vals, y_vals):
+        """
+        Initialize the warm start for the optimization model.
+        The x_vals and y_vals don't have to be a feasible solution, Gurobi reconstructs when solving.
+        """
         for i in range(self.n_facilities):
             for j in range(self.n_clients):
                 self.x[i, j].start = x_vals[i, j].x
@@ -242,6 +251,9 @@ class CFLInstance:
 
     # Features
     def compute_features(self):
+        """
+        Features used for the linear neural network model.
+        """
         k = self.n_clients // self.n_facilities
         features = {
             "capacities" : self.data["capacities"],
@@ -292,6 +304,9 @@ class CFLInstance:
         return np.bincount(sorted_indices, minlength=self.n_facilities)
     
     def save_instance(self, path):
+        """
+        Saves the instance data and solution (if solved) to a .npz file.
+        """
         if self.status == "solved":
             np.savez(
                 path,
@@ -319,6 +334,11 @@ class CFLInstance:
 
     @staticmethod
     def load_instance_and_solution(path):
+        """
+        Loads the instance data and solution (if solved) from a .npz file.
+        Returns a dictionary with keys "instance" and "solution".
+        The "solution" key will be None if the instance was not solved.
+        """
         data = np.load(path)
         inst = CFLInstance(
             n_facilities=len(data["facilities"]),
@@ -344,6 +364,10 @@ class CFLInstance:
         return {"instance": inst, "solution": {"x": data["x"], "y": data["y"]} if data["solved"] else None}
     
     def get_solved_model_using_thetas(self, thetas, timeout=60, shift_times=False):
+        """
+        Returns the solved Gurobi model of the regular instance that was solved using the relaxation perturbed by the given thetas.
+        If shift_times is True, the time takes in account the time taken to solve the perturbed relaxation.
+        """
         if shift_times:
             import time
             start_time = time.time()
@@ -368,6 +392,9 @@ class CFLInstance:
         return self.m, values, times
 
     def get_solved_relaxation_using_thetas(self, thetas):
+        """
+        Returns the solved Gurobi model of the associated relaxation with the objective function perturbed by the given thetas.
+        """
         perturbed_instance = self.get_perturbed_relaxation(thetas)
         perturbed_instance.Params.OutputFlag = 0
         perturbed_instance.optimize()

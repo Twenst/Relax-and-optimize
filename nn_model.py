@@ -18,6 +18,10 @@ class NNModel(nn.Module):
         return self.model(x)
 
     def loss(self, thetas, instances: List[CFLInstance], y_true, config):
+        """
+        Computes the loss for the given thetas and instances.
+        The loss is a Fenchel-Young loss over the y values obtained from solving with the perturbed thetas.
+        """
         fy_score = torch.dot(thetas.reshape(-1), y_true)
         idx = 0
         for instance in instances:
@@ -61,13 +65,17 @@ class NNModel(nn.Module):
             idx += instance.n_facilities
         return fy_score/len(instances)
     
-    def epoch_pass(self, model, optimizer, data: Data, config):
+    def epoch_pass(self, optimizer, data: Data, config):
+        """
+        Performs one epoch of training on the model using the provided optimizer and data.
+        Returns the average training loss, validation loss, and time taken for the epoch.
+        """
         start_time = time()
         data.train.shuffle()
         total_loss = torch.tensor(0.0, dtype=torch.float32)
         n_batches = 0
         for batch in data.train.get_batches(config["batch_size"]):
-            pred = model(batch.X)
+            pred = self.forward(batch.X)
             loss = self.loss(pred, batch.instances, batch.y, config)
             optimizer.zero_grad()
             loss.backward()
@@ -78,7 +86,7 @@ class NNModel(nn.Module):
         
         # validation loss
         with torch.no_grad():
-            pred = model(data.val.X)
+            pred = self.forward(data.val.X)
             val_loss = self.validation_loss(pred, data.val.instances, data.val.y)
         end_time = time()
         
@@ -97,4 +105,7 @@ class LinearNNModel(NNModel):
             if i != len(hidden_layer_sizes) - 2:
                 self.model.append(nn.ReLU())
 
-        
+class GNNModel(NNModel):
+    def __init__(self):
+        # TODO
+        pass
