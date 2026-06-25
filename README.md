@@ -13,3 +13,12 @@ You can clear the execution files (`[...].err`, `[...].out` and the scripts used
 
 --- 
 The main script is `script_train_model.py`.
+
+
+---
+# Requirements:
+
+The python packages needed are in `requirements.txt`.
+You can install them using `pip install -r requirements.txt`.
+
+The code needs a base instance dataset, you can do that using the `data_gen.ipynb` notebook. A notebook is used here to be able to visualize the generated dataset and to check if it'll suitable.
